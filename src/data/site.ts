@@ -1,10 +1,10 @@
 export const site = {
   name: 'GlowUP',
   city: 'Бишкек',
-  phone: '+996 222 550 773',
-  phoneHref: 'tel:+996222550773',
-  telegram: 'https://t.me/glowup_bishkek',
-  whatsapp: 'https://wa.me/996222550773',
+  phone: '+996 220 531 410',
+  phoneHref: 'tel:+996220531410',
+  telegram: 'https://t.me/GlowUp_up_bot',
+  whatsapp: 'https://wa.me/996220531410',
   hours: 'Ежедневно, 7:00 — 23:00',
 };
 
