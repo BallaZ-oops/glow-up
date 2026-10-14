@@ -1,0 +1,181 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from '../data/site';
+---
+<Layout
+  title={`${site.name} — тренажёрный зал в ${site.city}`}
+  description="Тренажёрный зал, групповые программы и персональные тренеры в Бишкеке. Запишитесь на пробную тренировку."
+>
+  <header class="header">
+    <a class="logo" href="#top">{site.name}</a>
+    <nav class="nav">
+      <a href="#about">О зале</a>
+      <a href="#programs">Программы</a>
+      <a href="#trainers">Тренеры</a>
+      <a href="#pricing">Цены</a>
+      <a href="#schedule">Расписание</a>
+      <a class="accent" href="#contact">Контакты</a>
+    </nav>
+  </header>
+
+  <main>
+    <section id="top" class="hero">
+      <div class="eyebrow" style="letter-spacing:.4em">Фитнес-клуб · {site.city}</div>
+      <h1>{site.name}</h1>
+      <p>Тренажёрный зал, групповые программы и персональные тренеры в одном месте.</p>
+      <a class="btn" href="#contact">Записаться на пробную</a>
+      <div class="scroll">SCROLL</div>
+    </section>
+
+    <section id="about" class="wrap about">
+      <img src="/img/about-photo.webp" alt="Тренажёрный зал GlowUP" loading="lazy" />
+      <div>
+        <div class="eyebrow">01 — О зале</div>
+        <h2>Пространство для тех, кто настроен на результат</h2>
+        <p>Тренажёрный зал в Бишкеке с зонами силового и функционального тренинга, групповыми программами и раздевалками. Работаем ежедневно с 7:00 до 23:00.</p>
+        <div class="stats">
+          <div class="stat"><b>7–23</b><span>Ежедневно</span></div>
+          <div class="stat"><b>2</b><span>Тренера</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section id="programs" class="wrap">
+      <h2 class="h2">Программы</h2>
+      {programs.map((p) => (
+        <div class="program">
+          <span class="n">{p.n}</span>
+          <span class="t">{p.t}</span>
+          <span class="d">{p.d}</span>
+        </div>
+      ))}
+      <div class="programs-end"></div>
+    </section>
+
+    <section id="trainers" class="wrap">
+      <h2 class="h2">Тренеры</h2>
+      <div class="trainers">
+        {trainers.map((t) => (
+          <div class="trainer">
+            <img src={t.img} alt={t.name} loading="lazy" />
+            <div class="name">{t.name}</div>
+            <div class="role">{t.role}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section id="pricing" class="wrap">
+      <h2 class="h2">Абонементы</h2>
+      <div class="plans">
+        {plans.map((pl) => (
+          <div class:list={['plan', { featured: pl.featured }]}>
+            <div class="name">{pl.name}</div>
+            <div class="price">{pl.price}</div>
+            <div class="desc">{pl.desc}</div>
+            <a href="#contact">Выбрать</a>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section id="schedule" class="wrap">
+      <h2 class="h2">Расписание</h2>
+      <div class="schedule">
+        {schedule.map((d) => (
+          <div class="day">
+            <h3>{d.day}</h3>
+            {d.items.map(([time, name]) => (
+              <div><time>{time}</time><span>{name}</span></div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <section id="gallery" class="wrap">
+      <h2 class="h2">Галерея</h2>
+      <div class="gallery">
+        {gallery.map((src) => <img src={src} alt="Фото зала" loading="lazy" />)}
+      </div>
+    </section>
+
+    <section id="reviews" class="wrap">
+      <h2 class="h2">Отзывы</h2>
+      <div class="reviews">
+        {reviews.map((r) => (
+          <div class="review"><p>«{r.text}»</p><b>{r.name}</b></div>
+        ))}
+      </div>
+    </section>
+
+    <section id="faq" class="wrap faq">
+      <h2 class="h2">Вопросы</h2>
+      {faq.map((f) => (
+        <details><summary>{f.q}</summary><p>{f.a}</p></details>
+      ))}
+    </section>
+
+    <section id="contact" class="wrap contact">
+      <div>
+        <h2>Контакты</h2>
+        <div class="rows">
+          <div><small>Адрес</small>г. {site.city}</div>
+          <div><small>Телефон</small><a href={site.phoneHref}>{site.phone}</a></div>
+          <div><small>Мессенджеры</small><a href={site.telegram} target="_blank" rel="noopener">Telegram</a> · <a href={site.whatsapp} target="_blank" rel="noopener">WhatsApp</a></div>
+          <div><small>Часы работы</small>{site.hours}</div>
+        </div>
+      </div>
+      <form class="form" id="lead-form" novalidate>
+        <div class="title">ПРОБНАЯ ТРЕНИРОВКА</div>
+        <input name="name" placeholder="Ваше имя" required autocomplete="name" />
+        <input name="phone" type="tel" placeholder="Телефон" required autocomplete="tel" />
+        <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
+        <button class="btn" type="submit">Отправить заявку</button>
+        <p class="status" role="status"></p>
+      </form>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>© {new Date().getFullYear()} {site.name}</span>
+    <a href="#top">НАВЕРХ ↑</a>
+  </footer>
+
+  <a class="fab" href={site.phoneHref} aria-label="Позвонить">☎</a>
+
+  <script>
+    const form = document.getElementById('lead-form') as HTMLFormElement;
+    const status = form.querySelector('.status') as HTMLElement;
+    const button = form.querySelector('button') as HTMLButtonElement;
+
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = Object.fromEntries(new FormData(form));
+      if (!String(data.name).trim() || String(data.phone).replace(/\D/g, '').length < 9) {
+        status.className = 'status err';
+        status.textContent = 'Укажите имя и корректный номер телефона.';
+        return;
+      }
+      button.disabled = true;
+      status.className = 'status';
+      status.textContent = 'Отправляем…';
+      try {
+        const res = await fetch('/api/lead', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data),
+        });
+        if (!res.ok) throw new Error();
+        form.reset();
+        status.className = 'status ok';
+        status.textContent = 'Заявка отправлена! Мы скоро свяжемся с вами.';
+      } catch {
+        status.className = 'status err';
+        status.textContent = 'Не удалось отправить. Позвоните нам или попробуйте позже.';
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
+</Layout>
