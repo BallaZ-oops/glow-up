@@ -1,12 +1,17 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from '../data/site';
+
+const letters = site.name.split('');
+const ticker = ['Сила', 'Выносливость', 'Дисциплина', 'Результат', 'Энергия', 'Баланс'];
 ---
 <Layout
   title={`${site.name} — тренажёрный зал в ${site.city}`}
   description="Тренажёрный зал, групповые программы и персональные тренеры в Бишкеке. Запишитесь на пробную тренировку."
 >
-  <header class="header">
+  <div class="glow-cursor" id="glow-cursor"></div>
+
+  <header class="header" id="header">
     <a class="logo" href="#top">{site.name}</a>
     <nav class="nav">
       <a href="#about">О зале</a>
@@ -20,44 +25,64 @@ import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from
 
   <main>
     <section id="top" class="hero">
-      <div class="eyebrow" style="letter-spacing:.4em">Фитнес-клуб · {site.city}</div>
-      <h1>{site.name}</h1>
-      <p>Тренажёрный зал, групповые программы и персональные тренеры в одном месте.</p>
-      <a class="btn" href="#contact">Записаться на пробную</a>
-      <div class="scroll">SCROLL</div>
+      <div class="hero-orb"></div>
+      <div class="hero-ring"></div>
+      <div class="hero-ring r2"></div>
+      <div class="hero-in">
+        <div class="eyebrow fade-up" style="--d:.1s">Фитнес-клуб · {site.city}</div>
+        <h1 aria-label={site.name}>
+          {letters.map((c, i) => <span style={`--i:${i}`} aria-hidden="true">{c}</span>)}
+        </h1>
+        <p class="lead fade-up" style="--d:.9s">Тренажёрный зал, групповые программы и персональные тренеры в одном месте. Свет, который появляется после первой тренировки.</p>
+        <a class="btn fade-up" style="--d:1.1s" href="#contact">Записаться на пробную</a>
+      </div>
+      <div class="scroll"><span>SCROLL</span><i></i></div>
     </section>
 
+    <div class="marquee" aria-hidden="true">
+      <div class="marquee-track">
+        {[...ticker, ...ticker, ...ticker, ...ticker].map((w) => <span>{w}</span>)}
+      </div>
+    </div>
+
     <section id="about" class="wrap about">
-      <img src="/img/about-photo.webp" alt="Тренажёрный зал GlowUP" loading="lazy" />
-      <div>
+      <div class="side-label">О зале</div>
+      <div class="frame reveal">
+        <img src="/img/about-photo.webp" alt="Тренажёрный зал GlowUP" loading="lazy" />
+      </div>
+      <div class="reveal" style="--d:.15s">
         <div class="eyebrow">01 — О зале</div>
-        <h2>Пространство для тех, кто настроен на результат</h2>
+        <h2>Пространство для тех, кто настроен на <em>результат</em></h2>
         <p>Тренажёрный зал в Бишкеке с зонами силового и функционального тренинга, групповыми программами и раздевалками. Работаем ежедневно с 7:00 до 23:00.</p>
         <div class="stats">
           <div class="stat"><b>7–23</b><span>Ежедневно</span></div>
-          <div class="stat"><b>2</b><span>Тренера</span></div>
+          <div class="stat"><b data-count="2">0</b><span>Тренера</span></div>
+          <div class="stat"><b data-count="5">0</b><span>Программ</span></div>
         </div>
       </div>
     </section>
 
     <section id="programs" class="wrap">
-      <h2 class="h2">Программы</h2>
-      {programs.map((p) => (
-        <div class="program">
+      <div class="side-label">Программы</div>
+      <h2 class="h2 reveal">Наши <em>программы</em></h2>
+      {programs.map((p, i) => (
+        <div class="program reveal" style={`--d:${i * 0.08}s`}>
           <span class="n">{p.n}</span>
           <span class="t">{p.t}</span>
           <span class="d">{p.d}</span>
+          <span class="arr">→</span>
         </div>
       ))}
       <div class="programs-end"></div>
     </section>
 
     <section id="trainers" class="wrap">
-      <h2 class="h2">Тренеры</h2>
+      <div class="side-label">Тренеры</div>
+      <h2 class="h2 reveal">Ваши <em>тренеры</em></h2>
       <div class="trainers">
-        {trainers.map((t) => (
-          <div class="trainer">
-            <img src={t.img} alt={t.name} loading="lazy" />
+        {trainers.map((t, i) => (
+          <div class="trainer reveal" style={`--d:${i * 0.15}s`}>
+            <div class="photo"><img src={t.img} alt={t.name} loading="lazy" /></div>
             <div class="name">{t.name}</div>
             <div class="role">{t.role}</div>
           </div>
@@ -66,10 +91,12 @@ import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from
     </section>
 
     <section id="pricing" class="wrap">
-      <h2 class="h2">Абонементы</h2>
+      <div class="side-label">Абонементы</div>
+      <h2 class="h2 reveal">Выберите <em>абонемент</em></h2>
       <div class="plans">
-        {plans.map((pl) => (
-          <div class:list={['plan', { featured: pl.featured }]}>
+        {plans.map((pl, i) => (
+          <div class:list={['plan', 'reveal', { featured: pl.featured }]} style={`--d:${i * 0.12}s`}>
+            {pl.featured && <div class="tag">Выгодно</div>}
             <div class="name">{pl.name}</div>
             <div class="price">{pl.price}</div>
             <div class="desc">{pl.desc}</div>
@@ -80,10 +107,11 @@ import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from
     </section>
 
     <section id="schedule" class="wrap">
-      <h2 class="h2">Расписание</h2>
+      <div class="side-label">Расписание</div>
+      <h2 class="h2 reveal">Расписание <em>занятий</em></h2>
       <div class="schedule">
-        {schedule.map((d) => (
-          <div class="day">
+        {schedule.map((d, i) => (
+          <div class="day reveal" style={`--d:${i * 0.12}s`}>
             <h3>{d.day}</h3>
             {d.items.map(([time, name]) => (
               <div><time>{time}</time><span>{name}</span></div>
@@ -94,31 +122,36 @@ import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from
     </section>
 
     <section id="gallery" class="wrap">
-      <h2 class="h2">Галерея</h2>
+      <div class="side-label">Галерея</div>
+      <h2 class="h2 reveal">Атмосфера <em>зала</em></h2>
       <div class="gallery">
-        {gallery.map((src) => <img src={src} alt="Фото зала" loading="lazy" />)}
+        {gallery.map((src, i) => (
+          <div class="g reveal" style={`--d:${i * 0.12}s`}><img src={src} alt="Фото зала" loading="lazy" /></div>
+        ))}
       </div>
     </section>
 
     <section id="reviews" class="wrap">
-      <h2 class="h2">Отзывы</h2>
+      <div class="side-label">Отзывы</div>
+      <h2 class="h2 reveal">Говорят <em>клиенты</em></h2>
       <div class="reviews">
-        {reviews.map((r) => (
-          <div class="review"><p>«{r.text}»</p><b>{r.name}</b></div>
+        {reviews.map((r, i) => (
+          <div class="review reveal" style={`--d:${i * 0.12}s`}><p>{r.text}</p><b>{r.name}</b></div>
         ))}
       </div>
     </section>
 
     <section id="faq" class="wrap faq">
-      <h2 class="h2">Вопросы</h2>
+      <div class="side-label">Вопросы</div>
+      <h2 class="h2 reveal">Частые <em>вопросы</em></h2>
       {faq.map((f) => (
-        <details><summary>{f.q}</summary><p>{f.a}</p></details>
+        <details class="reveal"><summary>{f.q}</summary><p>{f.a}</p></details>
       ))}
     </section>
 
     <section id="contact" class="wrap contact">
-      <div>
-        <h2>Контакты</h2>
+      <div class="reveal">
+        <h2>Начните <em style="color:var(--gold)">сегодня</em></h2>
         <div class="rows">
           <div><small>Адрес</small>г. {site.city}</div>
           <div><small>Телефон</small><a href={site.phoneHref}>{site.phone}</a></div>
@@ -126,8 +159,8 @@ import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from
           <div><small>Часы работы</small>{site.hours}</div>
         </div>
       </div>
-      <form class="form" id="lead-form" novalidate>
-        <div class="title">ПРОБНАЯ ТРЕНИРОВКА</div>
+      <form class="form reveal" style="--d:.15s" id="lead-form" novalidate>
+        <div class="title">Пробная тренировка</div>
         <input name="name" placeholder="Ваше имя" required autocomplete="name" />
         <input name="phone" type="tel" placeholder="Телефон" required autocomplete="tel" />
         <input class="hp" name="website" tabindex="-1" autocomplete="off" aria-hidden="true" />
@@ -145,6 +178,48 @@ import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from
   <a class="fab" href={site.phoneHref} aria-label="Позвонить">☎</a>
 
   <script>
+    // sticky header state
+    const header = document.getElementById('header')!;
+    const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 40);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+
+    // scroll reveal
+    const io = new IntersectionObserver(
+      (entries) => entries.forEach((e) => {
+        if (e.isIntersecting) { e.target.classList.add('in'); io.unobserve(e.target); }
+      }),
+      { threshold: 0.12 },
+    );
+    document.querySelectorAll('.reveal').forEach((el) => io.observe(el));
+
+    // count-up numbers
+    const counters = new IntersectionObserver((entries) => entries.forEach((e) => {
+      if (!e.isIntersecting) return;
+      counters.unobserve(e.target);
+      const el = e.target as HTMLElement;
+      const to = Number(el.dataset.count);
+      const t0 = performance.now();
+      const tick = (t: number) => {
+        const p = Math.min((t - t0) / 1200, 1);
+        el.textContent = String(Math.round(to * (1 - Math.pow(1 - p, 3))));
+        if (p < 1) requestAnimationFrame(tick);
+      };
+      requestAnimationFrame(tick);
+    }), { threshold: 0.6 });
+    document.querySelectorAll('[data-count]').forEach((el) => counters.observe(el));
+
+    // soft glow that follows the cursor (desktop only)
+    const glow = document.getElementById('glow-cursor')!;
+    if (window.matchMedia('(hover: hover)').matches) {
+      window.addEventListener('pointermove', (e) => {
+        glow.style.transform = `translate(${e.clientX - 260}px, ${e.clientY - 260}px)`;
+      }, { passive: true });
+    } else {
+      glow.style.display = 'none';
+    }
+
+    // lead form
     const form = document.getElementById('lead-form') as HTMLFormElement;
     const status = form.querySelector('.status') as HTMLElement;
     const button = form.querySelector('button') as HTMLButtonElement;
