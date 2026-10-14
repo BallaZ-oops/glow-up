@@ -105,7 +105,8 @@ main, .footer { position: relative; z-index: 1; }
 .hero h1 {
   font-family: var(--font-brand); font-weight: 800; font-size: clamp(44px, 9.5vw, 128px);
   line-height: 1; margin: 22px 0 26px; letter-spacing: .06em;
-  background: linear-gradient(180deg, #f6f7fb 10%, #6c7188 95%);
+  background: linear-gradient(180deg, #ffffff 0%, #f0d79c 60%, #d9b56a 100%);
+  filter: drop-shadow(0 4px 30px rgba(217,181,106,.35));
   -webkit-background-clip: text; background-clip: text; color: transparent;
 }
 .hero h1 span { display: inline-block; opacity: 0; transform: translateY(40px) rotate(4deg); animation: rise .9s var(--ease) forwards; animation-delay: calc(.25s + var(--i) * .07s); }
