@@ -1,5 +1,6 @@
 ---
 import Layout from '../layouts/Layout.astro';
+import ChatWidget from '../components/ChatWidget.astro';
 import { site, programs, trainers, plans, schedule, gallery, reviews, faq } from '../data/site';
 
 const letters = site.name.split('');
@@ -176,6 +177,7 @@ const ticker = ['Сила', 'Выносливость', 'Дисциплина', 
   </footer>
 
   <a class="fab" href={site.phoneHref} aria-label="Позвонить">☎</a>
+  <ChatWidget />
 
   <script>
     // sticky header state

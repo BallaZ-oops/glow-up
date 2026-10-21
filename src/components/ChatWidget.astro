@@ -1,0 +1,223 @@
+---
+// Плавающий AI-чат. Все запросы к модели идут через серверную функцию /api/chat — ключей на клиенте нет.
+---
+<button class="gc-btn" id="gc-btn" type="button" aria-label="Открыть чат с AI-помощником" aria-expanded="false" aria-controls="gc-panel" hidden>
+  <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12a8 8 0 0 1-11.6 7.1L4 20.5l1.5-4.6A8 8 0 1 1 21 12Z"/><path d="M8.5 11.5h.01M12 11.5h.01M15.5 11.5h.01"/></svg>
+</button>
+
+<section class="gc-panel" id="gc-panel" role="dialog" aria-label="Чат с AI-помощником GlowUP" hidden>
+  <header>
+    <div class="gc-title"><span class="gc-dot"></span><div><b>AI-помощник GlowUP</b><small>Отвечает на вопросы и записывает на пробную</small></div></div>
+    <button type="button" id="gc-close" aria-label="Закрыть чат">✕</button>
+  </header>
+  <div class="gc-msgs" id="gc-msgs" aria-live="polite"></div>
+  <div class="gc-chips" id="gc-chips"></div>
+  <form class="gc-form" id="gc-form" autocomplete="off">
+    <input id="gc-input" type="text" maxlength="1000" placeholder="Напишите вопрос…" aria-label="Сообщение" required />
+    <button type="submit" id="gc-send" aria-label="Отправить">➤</button>
+  </form>
+  <p class="gc-foot">Ответы формирует ИИ на основе данных клуба. Точные условия подтвердит администратор.</p>
+</section>
+
+<script>
+  const btn = document.getElementById('gc-btn') as HTMLButtonElement;
+  const panel = document.getElementById('gc-panel') as HTMLElement;
+  const list = document.getElementById('gc-msgs') as HTMLElement;
+  const chips = document.getElementById('gc-chips') as HTMLElement;
+  const form = document.getElementById('gc-form') as HTMLFormElement;
+  const input = document.getElementById('gc-input') as HTMLInputElement;
+  const send = document.getElementById('gc-send') as HTMLButtonElement;
+
+  type Msg = { role: 'user' | 'assistant'; content: string };
+  let history: Msg[] = [];
+  let conversationId: string | null = null;
+  let info: { enabled: boolean; configured: boolean; greeting: string | null; phone: string | null } | null = null;
+  let busy = false;
+  let opened = false;
+
+  try {
+    const saved = JSON.parse(sessionStorage.getItem('gc_state') || 'null');
+    if (saved && Array.isArray(saved.history)) { history = saved.history; conversationId = saved.conversationId || null; }
+  } catch {}
+  const persist = () => {
+    try { sessionStorage.setItem('gc_state', JSON.stringify({ history, conversationId })); } catch {}
+  };
+
+  const esc = (s: string) => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+  function fmt(text: string): string {
+    const lines = esc(text).split('\n');
+    let html = '', inList = false;
+    for (const raw of lines) {
+      const line = raw.replace(/\*\*(.+?)\*\*/g, '<b>$1</b>');
+      const li = /^\s*(?:[-•*]|\d+[.)])\s+(.*)$/.exec(line);
+      if (li) { if (!inList) { html += '<ul>'; inList = true; } html += `<li>${li[1]}</li>`; continue; }
+      if (inList) { html += '</ul>'; inList = false; }
+      html += line.trim() ? `<p>${line}</p>` : '';
+    }
+    return html + (inList ? '</ul>' : '');
+  }
+
+  function add(role: 'user' | 'assistant' | 'note', text: string): HTMLElement {
+    const d = document.createElement('div');
+    d.className = `gc-msg ${role}`;
+    d.innerHTML = role === 'user' ? `<p>${esc(text)}</p>` : fmt(text);
+    list.appendChild(d);
+    list.scrollTop = list.scrollHeight;
+    return d;
+  }
+
+  function setChips(items: string[]) {
+    chips.innerHTML = '';
+    items.forEach((t) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.textContent = t;
+      b.addEventListener('click', () => ask(t));
+      chips.appendChild(b);
+    });
+  }
+
+  async function loadInfo() {
+    if (info) return info;
+    try {
+      const r = await fetch('/api/chat');
+      info = await r.json();
+    } catch {
+      info = { enabled: true, configured: false, greeting: null, phone: null };
+    }
+    return info!;
+  }
+
+  function unavailable(phone: string | null) {
+    add('assistant', `AI-помощник сейчас недоступен. Оставьте заявку в форме на странице${phone ? ` или позвоните: ${phone}` : ''} — мы свяжемся с вами.`);
+    form.hidden = true; chips.innerHTML = '';
+  }
+
+  async function open() {
+    panel.hidden = false; btn.setAttribute('aria-expanded', 'true'); btn.classList.add('gc-open');
+    if (!opened) {
+      opened = true;
+      const i = await loadInfo();
+      if (history.length) {
+        history.forEach((m) => add(m.role, m.content));
+      } else if (!i.configured) {
+        unavailable(i.phone);
+      } else {
+        add('assistant', i.greeting || 'Здравствуйте! Я AI-помощник GlowUP. Чем могу помочь?');
+        setChips(['Сколько стоит абонемент?', 'Какое расписание занятий?', 'Хочу записаться на пробную']);
+      }
+      if (history.length && !i.configured) { form.hidden = true; }
+    }
+    if (!form.hidden) input.focus();
+  }
+  function close() {
+    panel.hidden = true; btn.setAttribute('aria-expanded', 'false'); btn.classList.remove('gc-open'); btn.focus();
+  }
+
+  async function ask(text: string) {
+    if (busy || !text.trim()) return;
+    busy = true; send.disabled = true; chips.innerHTML = '';
+    history.push({ role: 'user', content: text });
+    add('user', text); persist();
+    const typing = add('assistant', '');
+    typing.classList.add('typing');
+    typing.innerHTML = '<span></span><span></span><span></span>';
+    try {
+      const r = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history.slice(-20), conversation_id: conversationId }),
+      });
+      const j = await r.json().catch(() => ({}));
+      typing.remove();
+      if (r.status === 429) {
+        add('note', 'Слишком много сообщений. Подождите несколько минут и попробуйте снова.');
+        history.pop();
+      } else if (r.status === 503) {
+        history.pop();
+        unavailable(info?.phone || null);
+      } else if (!r.ok || !j.ok) {
+        history.pop();
+        add('note', 'Не удалось получить ответ. Попробуйте ещё раз или позвоните нам.');
+      } else {
+        conversationId = j.conversation_id || conversationId;
+        history.push({ role: 'assistant', content: j.reply });
+        add('assistant', j.reply);
+        if (j.lead_created) add('note', '✓ Заявка передана администратору.');
+      }
+    } catch {
+      typing.remove();
+      history.pop();
+      add('note', 'Нет соединения. Проверьте интернет и попробуйте снова.');
+    } finally {
+      busy = false; send.disabled = false; persist();
+      if (!form.hidden) input.focus();
+    }
+  }
+
+  btn.addEventListener('click', () => (panel.hidden ? open() : close()));
+  document.getElementById('gc-close')!.addEventListener('click', close);
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !panel.hidden) close(); });
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const t = input.value.trim();
+    input.value = '';
+    ask(t);
+  });
+
+  // кнопка показывается, только если администратор не отключил чат
+  loadInfo().then((i) => { if (i.enabled) btn.hidden = false; });
+</script>
+
+<style is:global>
+  .gc-btn {
+    position: fixed; right: 20px; bottom: 20px; z-index: 70; width: 58px; height: 58px; border-radius: 50%;
+    border: 1px solid var(--gold); background: linear-gradient(135deg, var(--gold-light), var(--gold)); color: var(--bg);
+    display: grid; place-items: center; cursor: pointer; box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 0 rgba(217,181,106,.5);
+    transition: transform .3s var(--ease); animation: gc-pulse 2.8s ease-out infinite;
+  }
+  .gc-btn[hidden], .gc-panel[hidden] { display: none; }
+  .gc-btn:hover { transform: scale(1.08); }
+  .gc-btn.gc-open { animation: none; }
+  @keyframes gc-pulse { 70% { box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 16px rgba(217,181,106,0); } 100% { box-shadow: 0 10px 30px rgba(0,0,0,.5), 0 0 0 0 rgba(217,181,106,0); } }
+
+  .gc-panel {
+    position: fixed; right: 20px; bottom: 90px; z-index: 71; width: 380px; max-width: calc(100vw - 24px); height: 560px; max-height: calc(100vh - 110px);
+    display: flex; flex-direction: column; background: var(--panel); border: 1px solid var(--line); border-radius: 18px;
+    box-shadow: 0 24px 60px rgba(0,0,0,.6); overflow: hidden; animation: gc-in .25s var(--ease);
+  }
+  @keyframes gc-in { from { opacity: 0; transform: translateY(14px) scale(.98); } }
+  .gc-panel header { display: flex; justify-content: space-between; align-items: center; padding: 14px 16px; border-bottom: 1px solid var(--line); background: var(--bg-2); }
+  .gc-title { display: flex; gap: 10px; align-items: center; }
+  .gc-title b { display: block; font-family: var(--font-brand); font-size: 14px; letter-spacing: .02em; }
+  .gc-title small { color: var(--muted); font-size: 11px; }
+  .gc-dot { width: 9px; height: 9px; border-radius: 50%; background: #46c08a; box-shadow: 0 0 8px #46c08a; flex-shrink: 0; }
+  .gc-panel header button { background: none; border: 0; color: var(--muted); font-size: 16px; cursor: pointer; padding: 4px 8px; }
+  .gc-panel header button:hover { color: var(--text); }
+  .gc-msgs { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+  .gc-msg { max-width: 86%; padding: 10px 14px; border-radius: 16px; font-size: 14px; line-height: 1.5; word-wrap: break-word; }
+  .gc-msg p { margin: 0 0 6px; } .gc-msg p:last-child { margin: 0; }
+  .gc-msg ul { margin: 4px 0; padding-left: 18px; }
+  .gc-msg.assistant { align-self: flex-start; background: var(--panel-2, #181c27); border: 1px solid var(--line); border-bottom-left-radius: 4px; }
+  .gc-msg.user { align-self: flex-end; background: var(--gold); color: var(--bg); border-bottom-right-radius: 4px; }
+  .gc-msg.note { align-self: center; max-width: 100%; font-size: 12px; color: var(--muted); background: none; text-align: center; padding: 2px 8px; }
+  .gc-msg.typing { display: flex; gap: 4px; padding: 14px; }
+  .gc-msg.typing span { width: 7px; height: 7px; border-radius: 50%; background: var(--muted); animation: gc-dots 1.2s infinite; }
+  .gc-msg.typing span:nth-child(2) { animation-delay: .2s; } .gc-msg.typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes gc-dots { 0%, 60%, 100% { opacity: .25; transform: none; } 30% { opacity: 1; transform: translateY(-3px); } }
+  .gc-chips { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 16px 10px; }
+  .gc-chips:empty { display: none; }
+  .gc-chips button { font: inherit; font-size: 12px; background: none; border: 1px solid var(--gold); color: var(--gold); padding: 6px 12px; border-radius: 99px; cursor: pointer; transition: background .2s, color .2s; }
+  .gc-chips button:hover { background: var(--gold); color: var(--bg); }
+  .gc-form { display: flex; gap: 8px; padding: 10px 12px; border-top: 1px solid var(--line); }
+  .gc-form[hidden] { display: none; }
+  .gc-form input { flex: 1; background: var(--bg); border: 1px solid var(--line); color: var(--text); border-radius: 99px; padding: 11px 16px; font: inherit; font-size: 14px; min-width: 0; }
+  .gc-form input:focus { outline: none; border-color: var(--gold); }
+  .gc-form button { width: 42px; height: 42px; border-radius: 50%; border: 0; background: var(--gold); color: var(--bg); cursor: pointer; font-size: 16px; flex-shrink: 0; }
+  .gc-form button:disabled { opacity: .5; }
+  .gc-foot { margin: 0; padding: 0 14px 10px; font-size: 10.5px; color: var(--dim); text-align: center; }
+  @media (max-width: 520px) {
+    .gc-panel { right: 0; bottom: 0; width: 100vw; max-width: 100vw; height: 82vh; max-height: 82vh; border-radius: 18px 18px 0 0; }
+    .gc-btn { right: 14px; bottom: 14px; }
+  }
+  @media (prefers-reduced-motion: reduce) { .gc-btn, .gc-panel { animation: none; } }
+</style>
