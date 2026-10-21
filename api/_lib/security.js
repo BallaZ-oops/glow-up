@@ -29,6 +29,15 @@ export async function allow(scope, req, windowSeconds, max) {
   return e.n <= max;
 }
 
+// Общий (не по IP) лимит — потолок расходов на AI в сутки.
+export async function allowGlobal(scope, windowSeconds, max) {
+  try {
+    const { data, error } = await getDb().rpc('rate_limit_hit', { p_key: 'global:' + scope, p_window_seconds: windowSeconds, p_max: max });
+    if (!error && typeof data === 'boolean') return data;
+  } catch {}
+  return true;
+}
+
 export function cleanPhone(v) {
   const s = String(v ?? '').trim().slice(0, 30);
   return s.replace(/\D/g, '').length >= 9 && /^[+\d\s()\-]+$/.test(s) ? s : null;

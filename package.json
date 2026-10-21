@@ -9,9 +9,9 @@
     "preview": "astro preview"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.137.0",
     "@supabase/supabase-js": "^2.118.0",
-    "astro": "^5.0.0"
+    "astro": "^5.0.0",
+    "openai": "^7.40.0"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.11",

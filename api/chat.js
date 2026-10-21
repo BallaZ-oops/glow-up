@@ -1,9 +1,13 @@
-// POST /api/chat — диалог с AI-агентом. GET /api/chat — состояние виджета (включён ли, есть ли ключ).
+// POST /api/chat — диалог с AI-агентом (OpenAI). GET /api/chat — состояние виджета.
 import { getDb } from './_lib/supabase.js';
-import { allow, cleanText } from './_lib/security.js';
-import { runAgent, aiConfigured } from './_lib/agent.js';
+import { allow, allowGlobal, cleanText } from './_lib/security.js';
+import { runAgent } from './_lib/agent.js';
+import { aiConfigured } from './_lib/openai.js';
 
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_HISTORY = 12;       // сообщений передаётся модели
+const MAX_MESSAGE_CHARS = 1000;
+const DAILY_LIMIT = Number(process.env.CHAT_DAILY_LIMIT || 1500); // ответов в сутки на весь сайт
 
 async function chatSettings() {
   try {
@@ -43,17 +47,17 @@ export default async function handler(req, res) {
   }
   let history = body.messages
     .filter((m) => m && (m.role === 'user' || m.role === 'assistant') && typeof m.content === 'string')
-    .map((m) => ({ role: m.role, content: cleanText(m.content, 2000) }))
+    .map((m) => ({ role: m.role, content: cleanText(m.content, MAX_MESSAGE_CHARS) }))
     .filter((m) => m.content);
-  history = history.slice(-20);
+  history = history.slice(-MAX_HISTORY);
   while (history.length && history[0].role !== 'user') history.shift();
   if (!history.length || history[history.length - 1].role !== 'user') {
     return res.status(400).json({ ok: false, error: 'invalid' });
   }
 
-  if (!(await allow('chat', req, 600, 20))) {
-    return res.status(429).json({ ok: false, error: 'rate_limited' });
-  }
+  // --- лимиты: на IP и общий суточный потолок расходов ---
+  if (!(await allow('chat', req, 600, 20))) return res.status(429).json({ ok: false, error: 'rate_limited' });
+  if (!(await allowGlobal('chat-day', 86400, DAILY_LIMIT))) return res.status(503).json({ ok: false, error: 'daily_limit' });
 
   // --- диалог в БД (сбой записи не должен ломать ответ) ---
   const db = getDb();
@@ -72,21 +76,27 @@ export default async function handler(req, res) {
     conversationId = null;
   }
 
-  const store = async (role, content) => {
+  const store = async (role, content, extra = {}) => {
     if (!conversationId) return;
     try {
-      await db.from('chat_messages').insert({ conversation_id: conversationId, role, content });
+      let { error } = await db.from('chat_messages').insert({ conversation_id: conversationId, role, content, ...extra });
+      if (error && Object.keys(extra).length) ({ error } = await db.from('chat_messages').insert({ conversation_id: conversationId, role, content }));
+      if (error) throw new Error(error.message);
       await db.from('chat_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', conversationId);
     } catch (e) { console.error('message save failed:', e.message); }
   };
   await store('user', history[history.length - 1].content);
 
   try {
-    const { reply, leadCreated } = await runAgent({ history, conversationId, req });
-    await store('assistant', reply);
+    const { reply, leadCreated, meta } = await runAgent({ history, conversationId, req });
+    await store('assistant', reply, { model: meta.model, tokens_in: meta.tokens_in, tokens_out: meta.tokens_out });
+    console.log(`chat ok model=${meta.model} in=${meta.tokens_in} out=${meta.tokens_out} tools=${meta.tools.join(',') || '-'}`);
     return res.status(200).json({ ok: true, reply, conversation_id: conversationId, lead_created: leadCreated });
   } catch (e) {
-    console.error('agent failed:', e.status || '', e.message);
+    console.error('agent failed:', e.status || '', e.code || '', String(e.message).slice(0, 200));
+    if (e.status === 429 && e.code === 'insufficient_quota') return res.status(503).json({ ok: false, error: 'ai_quota' });
+    if (e.status === 429) return res.status(429).json({ ok: false, error: 'rate_limited' });
+    if (e.status === 401 || e.status === 403) return res.status(503).json({ ok: false, error: 'ai_misconfigured' });
     return res.status(502).json({ ok: false, error: 'agent_failed' });
   }
 }

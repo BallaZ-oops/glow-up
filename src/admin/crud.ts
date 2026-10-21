@@ -53,6 +53,7 @@ export interface Resource {
   toolbar?: (bar: HTMLElement, reload: () => void) => void;
   afterRender?: (tbody: HTMLElement, rows: any[], reload: () => void) => void;
   titleOf?: (row: any) => string;
+  onSaved?: () => void;
 }
 
 const PAGE = 20;
@@ -265,6 +266,7 @@ export async function openForm(res: Resource, row: any | null, preset: Record<st
       m.close();
       clearRefCache();
       reloadAll();
+      res.onSaved?.();
     });
   }
 

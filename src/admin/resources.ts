@@ -8,7 +8,7 @@ export const LEAD_STATUS: [string, string][] = [
   ['new', 'Новая'], ['contacted', 'Связались'], ['trial', 'Пробная'], ['converted', 'Стал клиентом'], ['lost', 'Отказ'],
 ];
 export const LEAD_SOURCE: [string, string][] = [
-  ['landing', 'Сайт'], ['chat', 'AI-чат'], ['manual', 'Вручную'], ['telegram', 'Telegram'],
+  ['landing', 'Сайт'], ['ai_chat', 'AI-чат'], ['manual', 'Вручную'], ['telegram', 'Telegram'],
 ];
 const label = (list: [string, string][], v: string) => list.find(([k]) => k === v)?.[1] || v || '—';
 const time = (t: string) => String(t || '').slice(0, 5);
@@ -42,7 +42,7 @@ const leads: Resource = {
     { key: 'created_at', label: 'Дата', render: (r) => esc(fmtDateTime(r.created_at)) },
     { key: 'name', label: 'Имя', render: (r) => `<b>${esc(r.name)}</b>` },
     { key: 'phone', label: 'Телефон', render: (r) => `<a href="tel:${esc(r.phone)}">${esc(r.phone)}</a>` },
-    { key: 'source', label: 'Источник', render: (r) => badge(label(LEAD_SOURCE, r.source), r.source === 'chat' ? 'info' : 'mute') },
+    { key: 'source', label: 'Источник', render: (r) => badge(label(LEAD_SOURCE, r.source), r.source === 'ai_chat' ? 'info' : 'mute') },
     { key: 'interest', label: 'Интерес', render: (r) => esc(r.interest || '—') },
     {
       key: 'status', label: 'Статус',
@@ -348,6 +348,19 @@ const bookings: Resource = {
 // ------------------------------------------------------------------ knowledge base
 const KB_CAT: [string, string][] = [['company', 'О компании'], ['faq', 'Вопрос-ответ'], ['service', 'Услуги'], ['pricing', 'Цены'], ['policy', 'Правила'], ['other', 'Другое']];
 
+export async function syncEmbeddings(): Promise<void> {
+  const { data: { session } } = await sb.auth.getSession();
+  try {
+    const r = await fetch('/api/kb-embed', { method: 'POST', headers: { Authorization: 'Bearer ' + (session?.access_token || '') } });
+    const j = await r.json().catch(() => ({}));
+    if (r.ok && j.ok) { toast(j.embedded ? 'Векторный индекс обновлён: ' + j.embedded + ' фрагм.' : 'Векторный индекс актуален'); return; }
+    if (j.error === 'ai_not_configured') toast('Векторы не созданы: на сервере нет OPENAI_API_KEY. Работает текстовый поиск.', 'err');
+    else toast('Не удалось обновить векторный индекс. Текстовый поиск продолжает работать.', 'err');
+  } catch {
+    toast('Векторный индекс недоступен (серверные функции не запущены).', 'err');
+  }
+}
+
 async function kbSearchDialog() {
   const m = openModal('Проверка поиска по базе знаний');
   m.body.innerHTML = `<p class="muted">Так AI-помощник ищет информацию. Введите вопрос посетителя.</p>
@@ -385,7 +398,18 @@ const kb: Resource = {
     { name: 'is_published', label: 'Доступен AI-помощнику', type: 'bool', default: true },
     { name: 'content', label: 'Текст / ответ', type: 'textarea', required: true, rows: 10, help: 'Абзацы разделяйте пустой строкой — так текст делится на фрагменты для поиска.' },
   ],
+  onSaved: () => { void syncEmbeddings(); },
   toolbar(bar, reload) {
+    const status = document.createElement('span');
+    status.className = 'muted';
+    Promise.all([
+      sb.from('kb_chunks').select('id', { count: 'exact', head: true }),
+      sb.from('kb_chunks').select('id', { count: 'exact', head: true }).eq('has_embedding', true),
+    ]).then(([all, emb]) => { if (!all.error && !emb.error) status.textContent = 'Векторы: ' + (emb.count ?? 0) + ' из ' + (all.count ?? 0) + ' фрагм.'; });
+    const sync = document.createElement('button');
+    sync.className = 'btn ghost';
+    sync.textContent = 'Обновить векторы';
+    sync.addEventListener('click', async () => { sync.disabled = true; await syncEmbeddings(); sync.disabled = false; reload(); });
     const test = document.createElement('button');
     test.className = 'btn ghost';
     test.textContent = 'Проверить поиск';
@@ -405,16 +429,17 @@ const kb: Resource = {
         title: f.name.replace(/\.[^.]+$/, ''), category: 'other', content: text, source_name: f.name,
       });
       if (error) { toast(errMsg(error), 'err'); return; }
-      toast('Документ загружен и проиндексирован');
+      toast('Документ загружен');
       reload();
+      void syncEmbeddings();
     });
-    bar.prepend(test, up);
+    bar.prepend(status, sync, test, up);
   },
   async detail(row, body) {
-    const { data } = await sb.from('kb_chunks').select('chunk_index,content').eq('document_id', row.id).order('chunk_index');
+    const { data } = await sb.from('kb_chunks').select('chunk_index,content,has_embedding').eq('document_id', row.id).order('chunk_index');
     body.innerHTML = `<h4>Фрагменты в поисковом индексе (${(data || []).length})</h4>` +
       ((data || []).length
-        ? (data as any[]).map((c) => `<div class="hit"><small class="muted">#${c.chunk_index + 1}</small><p>${esc(c.content)}</p></div>`).join('')
+        ? (data as any[]).map((c) => `<div class="hit"><small class="muted">#${c.chunk_index + 1} · ${c.has_embedding ? 'вектор есть' : 'без вектора (текстовый поиск)'}</small><p>${esc(c.content)}</p></div>`).join('')
         : '<p class="muted">Документ не опубликован — в индексе его нет.</p>');
   },
 };

@@ -84,6 +84,7 @@ export async function dashboard(root: HTMLElement): Promise<void> {
       ${kpi('Истекают за 7 дней', String(s.expiring_7d), '<small class="muted">абонементов</small>', '#/memberships')}
       ${kpi('Конверсия заявок', `${conv}%`, `<small class="muted">${s.leads_converted} из ${s.leads_total}</small>`, '#/analytics')}
       ${kpi('Записи на занятия', String(s.bookings_upcoming), '<small class="muted">предстоящие</small>', '#/bookings')}
+      ${kpi('Ответы AI за 30 дн.', String(s.ai_tokens_30d?.replies ?? 0), `<small class="muted">токенов: ${Number(s.ai_tokens_30d?.in ?? 0) + Number(s.ai_tokens_30d?.out ?? 0)}</small>`, '#/chats')}
     </div>
     <div class="grid-2">
       <div class="card"><h3>Заявки за 30 дней</h3>${barChart(days)}
@@ -197,8 +198,8 @@ export async function settings(root: HTMLElement): Promise<void> {
     const r = await fetch('/api/chat');
     const j = await r.json();
     $('#ai-status', root)!.innerHTML = j.configured
-      ? `<span class="badge ok">AI подключён</span> <small class="muted">ANTHROPIC_API_KEY найден на сервере</small>`
-      : `<span class="badge bad">AI не подключён</span> <small class="muted">Добавьте ANTHROPIC_API_KEY в переменные окружения Vercel и передеплойте.</small>`;
+      ? `<span class="badge ok">AI подключён</span> <small class="muted">OPENAI_API_KEY найден на сервере</small>`
+      : `<span class="badge bad">AI не подключён</span> <small class="muted">Добавьте OPENAI_API_KEY в переменные окружения Vercel и передеплойте.</small>`;
   } catch {
     $('#ai-status', root)!.innerHTML = '<small class="muted">Состояние AI недоступно в локальном режиме (нет серверной функции).</small>';
   }

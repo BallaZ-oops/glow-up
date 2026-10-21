@@ -1,5 +1,6 @@
 {
   "functions": {
-    "api/chat.js": { "maxDuration": 60 }
+    "api/chat.js": { "maxDuration": 60 },
+    "api/kb-embed.js": { "maxDuration": 60 }
   }
 }
