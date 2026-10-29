@@ -3,7 +3,6 @@
 
 Демонстрационная версия: https://glow-up-self-seven.vercel.app/
 
-Исходный код: https://github.com/BallaZ-oops/glow-up
 
 1. Общая информация
 Название проекта: GlowUP — веб-сайт фитнес-клуба.
